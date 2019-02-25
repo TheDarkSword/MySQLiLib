@@ -52,6 +52,10 @@ abstract class SQL {
         return $this->connection != null && mysqli_connect_errno();
     }
 
+    public function closeConnection(){
+        mysqli_close($this->connection);
+    }
+
     public abstract function reconnect();
 
     public function close(){
@@ -67,9 +71,10 @@ abstract class SQL {
         return mysqli_query($this->connection, $query);
     }
 
-    public function executeUpdate($query){
+    public function executeStatement($query){
         if(!$this->isConnected()) $this->reconnect();
-        return mysqli_stmt_execute(mysqli_prepare($this->connection, $query));
+        $stm = mysqli_prepare($this->connection, $query);
+        return mysqli_stmt_execute($stm);
     }
 
     public function createTable(array $args){
@@ -82,6 +87,95 @@ abstract class SQL {
 
         echo $query;
         $this->executeQuery($query);
+    }
+
+    public function addLineArray(array $columns, array $values, $secure = false){
+        if(count($columns) != count($values)) return;
+
+        if($secure){
+            for($i = 0; $i < count($values); $i++){
+                $values[$i] = mysqli_real_escape_string($this->connection, $values[$i]);
+            }
+        }
+
+        $query = "INSERT INTO `".$this->prefix.$this->table."` (";
+        for($i = 0; $i < count($columns); $i++){
+            $query .= "`$columns[$i]`";
+            if($i != count($columns)-1) $query .= ", ";
+        }
+        $query .= ") VALUES (";
+        for($i = 0; $i < count($values); $i++){
+            $query .= "'$values[$i]'";
+            if($i != count($values)-1) $query .= ", ";
+        }
+        $query .= ");";
+
+        $this->executeQuery($query);
+    }
+
+    public function addLine($column, $value, $secure = false){
+        $this->addLineArray(array($column), array($value), $secure);
+    }
+
+    public function removeLineArray(array $columns, array $values){
+        if(count($columns) != count($values)) return;
+
+        $query = "DELETE FROM `$this->prefix$this->table` WHERE (";
+        for($i = 0; $i < count($columns); $i++){
+            if($values[$i] == null) $query .= "`$columns[$i]` IS NULL";
+            else $query .= "`$columns[$i]` = '$values[$i]'";
+            if($i != count($columns)-1) $query .= " AND ";
+        }
+        $query .= ");";
+
+        $this->executeQuery($query);
+    }
+
+    public function removeLine($column, $value){
+        $this->removeLineArray(array($column), array($value));
+    }
+
+    public function lineExistsArray(array $columns, array $values){
+        if(count($columns) != count($values)) return false;
+
+        $query = "SELECT * FROM `$this->prefix$this->table` WHERE (";
+        for($i = 0; $i < count($columns); $i++){
+            if($values[$i] == null) $query .= "`$columns[$i]` IS NULL";
+            else $query .= "`$columns[$i]` = '$values[$i]'";
+            if($i != count($columns)-1) $query .= " AND ";
+        }
+        $query .= ");";
+
+        $result = $this->executeQuery($query);
+        return mysqli_num_rows($result) > 0;
+    }
+
+    public function lineExists($column, $value){
+        return $this->lineExistsArray(array($column), array($value));
+    }
+
+    public function getValueArray(array $columns, array $values, $search){
+        if(count($columns) != count($values)) return;
+
+        $query = "SELECT * FROM `$this->prefix$this->table` WHERE (";
+        for($i = 0; $i < count($columns); $i++){
+            if($values[$i] == null) $query .= "`$columns[$i]` IS NULL";
+            else $query .= "`$columns[$i]` = '$values[$i]'";
+            if($i != count($columns)-1) $query .= " AND ";
+        }
+        $query .= ");";
+
+        $result = $this->executeQuery($query);
+        while($row = $result->fetch_array(MYSQLI_ASSOC)){
+            $res = $row[$search];
+            $result->free();
+            return $res;
+        }
+        return null;
+    }
+
+    public function getValue($column, $value, $search){
+        return $this->getValueArray(array($column), array($value), $search);
     }
 }
 
