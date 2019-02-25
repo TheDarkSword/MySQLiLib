@@ -52,10 +52,6 @@ abstract class SQL {
         return $this->connection != null && mysqli_connect_errno();
     }
 
-    public function closeConnection(){
-        mysqli_close($this->connection);
-    }
-
     public abstract function reconnect();
 
     public function close(){
