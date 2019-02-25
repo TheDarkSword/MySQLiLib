@@ -63,7 +63,6 @@ abstract class SQL {
 
     public function executeQuery($query){
         if(!$this->isConnected()) $this->reconnect();
-        echo "Query Executed";
         return mysqli_query($this->connection, $query);
     }
 
@@ -81,7 +80,6 @@ abstract class SQL {
         }
         $query .= ");";
 
-        echo $query;
         $this->executeQuery($query);
     }
 
